@@ -1,0 +1,73 @@
+name: local-data-platform
+
+networks:
+  ldp-net:
+    external: true
+    name: ldp-net
+
+volumes:
+  dagster-home:
+
+services:
+  dagster-user-code:
+    build:
+      context: ../processing/dagster_project
+      dockerfile: Dockerfile
+    container_name: dagster-user-code
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >
+        cd /opt/dagster/app/dbt_project &&
+        dbt parse --profiles-dir /opt/dagster/app/dbt_project &&
+        cd /opt/dagster/app &&
+        dagster api grpc -h 0.0.0.0 -p 4000 -m local_data_platform.definitions
+    depends_on:
+      - trino
+    env_file:
+      - ../.env
+    environment:
+      DAGSTER_HOME: /opt/dagster/dagster_home
+    volumes:
+      - ../processing/dagster_project:/opt/dagster/app
+      - ../processing/dbt_project:/opt/dagster/app/dbt_project
+      - dagster-home:/opt/dagster/dagster_home
+    networks:
+      - ldp-net
+
+  dagster-webserver:
+    build:
+      context: ../processing/dagster_project
+      dockerfile: Dockerfile
+    container_name: dagster-webserver
+    command: ["dagster-webserver", "-h", "0.0.0.0", "-p", "3000", "-w", "/opt/dagster/app/workspace.yaml"]
+    depends_on:
+      - dagster-user-code
+    ports:
+      - "3000:3000"
+    env_file:
+      - ../.env
+    environment:
+      DAGSTER_HOME: /opt/dagster/dagster_home
+    volumes:
+      - ../processing/dagster_project:/opt/dagster/app
+      - dagster-home:/opt/dagster/dagster_home
+    networks:
+      - ldp-net
+
+  dagster-daemon:
+    build:
+      context: ../processing/dagster_project
+      dockerfile: Dockerfile
+    container_name: dagster-daemon
+    command: ["dagster-daemon", "run", "-w", "/opt/dagster/app/workspace.yaml"]
+    depends_on:
+      - dagster-user-code
+    env_file:
+      - ../.env
+    environment:
+      DAGSTER_HOME: /opt/dagster/dagster_home
+    volumes:
+      - ../processing/dagster_project:/opt/dagster/app
+      - dagster-home:/opt/dagster/dagster_home
+    networks:
+      - ldp-net

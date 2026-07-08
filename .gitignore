@@ -1,0 +1,28 @@
+.env
+*.env
+!.env.example
+
+# Docker/volumes (bind-mounted state, if any ends up local)
+minio-data/
+redpanda-data/
+dagster_home/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# AI stack runtime state
+ollama-data/
+openwebui-data/
+qdrant-data/
+
+# Nested processing repo — its own independent git repo, not tracked here.
+# See processing/README.md for the split rationale.
+processing/
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,97 @@
+name: local-data-platform
+
+networks:
+  ldp-net:
+    external: true
+    name: ldp-net
+
+volumes:
+  ollama-data:
+  openwebui-data:
+  qdrant-data:
+
+services:
+  ollama:
+    image: ollama/ollama:0.24.0
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    env_file:
+      - ../.env
+    networks:
+      - ldp-net
+    healthcheck:
+      # ollama's image ships neither curl nor wget; use bash's /dev/tcp to probe the port
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/11434"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  qdrant:
+    image: qdrant/qdrant:v1.16.2
+    container_name: qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant-data:/qdrant/storage
+    networks:
+      - ldp-net
+    healthcheck:
+      # qdrant's image ships neither curl nor wget; use bash's /dev/tcp to probe the port
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/6333"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  pipelines:
+    image: ghcr.io/open-webui/pipelines:main
+    container_name: pipelines
+    depends_on:
+      ollama:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+      trino:
+        condition: service_healthy
+    environment:
+      TRINO_HOST: trino
+      TRINO_CATALOG: iceberg
+    volumes:
+      - ../processing/pipelines:/app/pipelines
+    env_file:
+      - ../.env
+    ports:
+      - "9099:9099"
+    networks:
+      - ldp-net
+    healthcheck:
+      # the pipelines image doesn't expose a /health endpoint; root returns 200
+      test: ["CMD", "curl", "-f", "http://localhost:9099/"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:v0.10.1
+    container_name: open-webui
+    depends_on:
+      ollama:
+        condition: service_healthy
+      pipelines:
+        condition: service_healthy
+    environment:
+      OLLAMA_BASE_URL: http://ollama:11434
+      OPENAI_API_BASE_URLS: http://pipelines:9099
+      OPENAI_API_KEYS: ${OPENWEBUI_PIPELINES_API_KEY}
+      WEBUI_AUTH: "true"
+    volumes:
+      - openwebui-data:/app/backend/data
+    env_file:
+      - ../.env
+    ports:
+      - "3100:8080"
+    networks:
+      - ldp-net

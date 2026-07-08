@@ -1,0 +1,175 @@
+name: local-data-platform
+
+networks:
+  ldp-net:
+    name: ldp-net
+
+volumes:
+  minio-data:
+  redpanda-data:
+
+services:
+  # ---------------------------------------------------------------------
+  # Object storage
+  # ---------------------------------------------------------------------
+  minio:
+    image: minio/minio:RELEASE.2025-04-08T15-41-24Z
+    container_name: minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      # Unauthenticated Prometheus metrics endpoint — fine for a trusted
+      # local network (ldp-net); switch to token-based auth
+      # (`mc admin prometheus generate`) before exposing this more broadly.
+      MINIO_PROMETHEUS_AUTH_TYPE: public
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+    networks:
+      - ldp-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  minio-init:
+    image: minio/mc:RELEASE.2025-04-08T15-39-49Z
+    container_name: minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_APP_ACCESS_KEY: ${MINIO_APP_ACCESS_KEY}
+      MINIO_APP_SECRET_KEY: ${MINIO_APP_SECRET_KEY}
+    entrypoint: ["/bin/sh", "/init/create-buckets.sh"]
+    volumes:
+      - ../config/minio/init:/init:ro
+    networks:
+      - ldp-net
+    restart: "no"
+
+  # ---------------------------------------------------------------------
+  # Iceberg REST catalog
+  # ---------------------------------------------------------------------
+  nessie:
+    image: ghcr.io/projectnessie/nessie:0.99.0
+    container_name: nessie
+    environment:
+      nessie.version.store.type: ${NESSIE_VERSION_STORE_TYPE:-IN_MEMORY}
+    ports:
+      - "19120:19120"
+    networks:
+      - ldp-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:19120/api/v2/config"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  # ---------------------------------------------------------------------
+  # Distributed SQL query engine
+  # ---------------------------------------------------------------------
+  trino:
+    image: trinodb/trino:465
+    container_name: trino
+    depends_on:
+      minio:
+        condition: service_healthy
+      nessie:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    ports:
+      - "8080:8080"
+    volumes:
+      - ../config/trino/catalog:/etc/trino/catalog:ro
+      - ../config/trino/config.properties:/etc/trino/config.properties:ro
+      - ../config/trino/jvm.config:/etc/trino/jvm.config:ro
+      - ../config/trino/node.properties:/etc/trino/node.properties:ro
+      - ../config/trino/access-control.properties:/etc/trino/access-control.properties:ro
+      - ../config/trino/access-control:/etc/trino/access-control:ro
+    env_file:
+      - ../.env
+    networks:
+      - ldp-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/v1/info"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # ---------------------------------------------------------------------
+  # Streaming backbone
+  # ---------------------------------------------------------------------
+  redpanda:
+    image: redpandadata/redpanda:v24.2.18
+    container_name: redpanda
+    command:
+      - redpanda
+      - start
+      - --smp=1
+      - --memory=1G
+      - --reserve-memory=0M
+      - --overprovisioned
+      - --node-id=0
+      - --check=false
+      - --kafka-addr=internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr=internal://redpanda:9092,external://localhost:19092
+      - --pandaproxy-addr=internal://0.0.0.0:8082,external://0.0.0.0:18082
+      - --advertise-pandaproxy-addr=internal://redpanda:8082,external://localhost:18082
+      - --schema-registry-addr=internal://0.0.0.0:8081,external://0.0.0.0:18081
+    ports:
+      - "19092:19092"
+      - "18081:18081"
+      - "18082:18082"
+    volumes:
+      - redpanda-data:/var/lib/redpanda/data
+    networks:
+      - ldp-net
+    healthcheck:
+      test: ["CMD", "rpk", "cluster", "health", "--exit-when-healthy"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redpanda-console:
+    image: redpandadata/console:v2.8.5
+    container_name: redpanda-console
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKERS: redpanda:9092
+      KAFKA_SCHEMAREGISTRY_ENABLED: "true"
+      KAFKA_SCHEMAREGISTRY_URLS: http://redpanda:8081
+    ports:
+      - "8090:8080"
+    networks:
+      - ldp-net
+
+  # ---------------------------------------------------------------------
+  # Streaming landing pipeline (Phase 3) — enable once connectors/ is ready
+  # ---------------------------------------------------------------------
+  redpanda-connect:
+    image: redpandadata/connect:4.33.0
+    container_name: redpanda-connect
+    depends_on:
+      redpanda:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    command: ["run", "/connect.yaml"]
+    volumes:
+      - ../processing/connectors/redpanda-connect/events-to-minio.yaml:/connect.yaml:ro
+    env_file:
+      - ../.env
+    networks:
+      - ldp-net
+    profiles:
+      - streaming

@@ -1,0 +1,45 @@
+name: local-data-platform
+
+networks:
+  ldp-net:
+    external: true
+    name: ldp-net
+
+services:
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: backend
+    depends_on:
+      trino:
+        condition: service_healthy
+    env_file:
+      - ../.env
+    environment:
+      DAGSTER_GRAPHQL_URL: http://dagster-webserver:3000/graphql
+    ports:
+      - "8000:8000"
+    networks:
+      - ldp-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: http://localhost:8000/api
+        VITE_API_KEY: ${BACKEND_API_KEY}
+    container_name: frontend
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "3200:80"
+    networks:
+      - ldp-net

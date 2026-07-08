@@ -1,0 +1,51 @@
+{
+  "title": "Platform Overview (Redpanda / MinIO / Qdrant)",
+  "uid": "platform-overview",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "time": { "from": "now-15m", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Redpanda: Kafka request bytes/s (from /public_metrics)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "description": "Source: redpanda:9644/public_metrics",
+      "targets": [
+        { "expr": "sum(rate(redpanda_kafka_request_bytes_total[1m]))" }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "MinIO: S3 requests/s (from /minio/v2/metrics/cluster)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "description": "Source: minio:9000/minio/v2/metrics/cluster",
+      "targets": [
+        { "expr": "sum(rate(minio_s3_requests_total[1m]))" }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "MinIO: bucket usage bytes",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "description": "Source: minio:9000/minio/v2/metrics/cluster",
+      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
+      "targets": [
+        { "expr": "minio_bucket_usage_total_bytes" }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Qdrant: collections count (from /metrics)",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "description": "Source: qdrant:6333/metrics",
+      "targets": [
+        { "expr": "qdrant_collections_total" }
+      ]
+    }
+  ]
+}

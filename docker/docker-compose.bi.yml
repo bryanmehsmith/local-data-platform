@@ -1,0 +1,32 @@
+name: local-data-platform
+
+networks:
+  ldp-net:
+    external: true
+    name: ldp-net
+
+volumes:
+  metabase-data:
+
+services:
+  metabase:
+    image: metabase/metabase:v0.51.6
+    container_name: metabase
+    depends_on:
+      trino:
+        condition: service_healthy
+    environment:
+      MB_DB_FILE: /metabase-data/metabase.db
+    volumes:
+      - metabase-data:/metabase-data
+    env_file:
+      - ../.env
+    ports:
+      - "3400:3000"
+    networks:
+      - ldp-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 40

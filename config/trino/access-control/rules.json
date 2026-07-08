@@ -1,0 +1,6 @@
+{
+  "catalogs": [
+    { "user": "text_to_sql_readonly", "catalog": "iceberg", "allow": "read-only" },
+    { "user": ".*", "catalog": "iceberg", "allow": "all" }
+  ]
+}
