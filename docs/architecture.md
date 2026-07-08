@@ -91,7 +91,7 @@ A parallel branch embeds dbt's own model documentation into a second
 collection, so RAG can answer "what does this table mean" questions too:
 
 ```
-  processing/dbt_project/target/manifest.json  (model/column descriptions from Phase 7a)
+  processing/dbt_project/target/manifest.json  (model/column descriptions from Phase 6a)
         │
         ▼
   Dagster asset `dbt_docs_embeddings`
@@ -312,7 +312,7 @@ config change, not a rewrite.
 - **The `/api/trino/query` endpoint's read-only guard is app-level only**
   (same regex/keyword approach as `text_to_sql_pipeline.py`'s guard), not
   backed by a restricted Trino user the way `text_to_sql_readonly` backs
-  Phase 8a — the backend currently connects as a normal Trino user with full
+  Phase 7a — the backend currently connects as a normal Trino user with full
   catalog access. Giving it its own read-only Trino user is a documented
   follow-up, not built in v1.
 - **The `/api/chat/completions` proxy is non-streaming** — it waits for the
