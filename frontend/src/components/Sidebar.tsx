@@ -1,13 +1,15 @@
 import { NavLink } from "react-router-dom";
 import { Database, LayoutGrid, MessageSquare, Search, Home, Server } from "lucide-react";
+import { workloadRoutes } from "../routes-manifest";
 
 const NAV_ITEMS = [
   { to: "/", label: "Home", icon: Home, end: true },
-  { to: "/query", label: "Query", icon: Database },
-  { to: "/assets", label: "Assets", icon: LayoutGrid },
-  { to: "/chat", label: "Chat", icon: MessageSquare },
-  { to: "/search", label: "Search", icon: Search },
-  { to: "/services", label: "Services", icon: Server },
+  { to: "/query", label: "Query", icon: Database, end: false },
+  { to: "/assets", label: "Assets", icon: LayoutGrid, end: false },
+  { to: "/chat", label: "Chat", icon: MessageSquare, end: false },
+  { to: "/search", label: "Search", icon: Search, end: false },
+  { to: "/services", label: "Services", icon: Server, end: false },
+  ...workloadRoutes.map(({ path, label, icon, end }) => ({ to: path, label, icon, end: end ?? false })),
 ];
 
 export function Sidebar() {

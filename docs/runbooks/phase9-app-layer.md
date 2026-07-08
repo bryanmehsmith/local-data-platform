@@ -20,7 +20,7 @@ docker compose --env-file .env -f docker/docker-compose.yml -f docker/docker-com
 `DagsterClient`, `PipelinesClient`, `SearchClient`). Auth is a single shared
 `BACKEND_API_KEY` via the `X-API-Key` header (all routers except `/api/health`).
 The SQL safety guard (`app/sql_guard.py`) mirrors the same
-regex/keyword-based approach as `processing/pipelines/text_to_sql_pipeline.py`'s guard —
+regex/keyword-based approach as `workload/pipelines/text_to_sql_pipeline.py`'s guard —
 app-level only, not a substitute for real Trino-side access control.
 
 **Deliberate packaging deviation from `dagster_project`:** the backend uses
@@ -64,7 +64,7 @@ Cross-check the run reaches `SUCCESS` and matches what the Dagster UI (:3000) sh
 
 `chat.py` proxies to whichever pipelines model is requested (`lakehouse_rag`
 or Phase 7's `text_to_sql`), parsing the pipelines sidecar's SSE-chunked
-response format (same parsing logic as `processing/evals/run_rag_eval.py`). `search.py`
+response format (same parsing logic as `workload/evals/run_rag_eval.py`). `search.py`
 embeds via Ollama and searches Qdrant directly.
 
 Verify:
@@ -130,10 +130,37 @@ asset and watch its status poll to `SUCCESS`, send a chat message, run a
 search, and check the Services page shows all services healthy with working
 "Open" links.
 
+## Phase F5 — Workload extension point
+
+The `workload/backend/`/`workload/frontend/` folders (see
+`examples/README.md`'s "Extending the app layer" — `workload/` is seeded
+from `examples/` by `make init-workload` on a fresh clone) let
+scenario-specific routes/pages get picked up by this same running app
+without touching core `backend/`/`frontend/` code.
+`workload/backend/example_plugin.py` and
+`workload/frontend/src/routes/ExamplePage.tsx` are working templates,
+already wired in by default.
+
+### Verify
+
+```bash
+curl -H "X-API-Key: $BACKEND_API_KEY" http://localhost:8000/api/workload/example_plugin/example
+# expect {"message": "Hello from the workload backend plugin."}
+```
+Then open http://localhost:3200 — a "Workload Example" nav item should
+appear (contributed by `ExamplePage.tsx`, not hand-added to `Sidebar.tsx`)
+and render its page correctly at `/workload-example`.
+
+To confirm the mechanism is genuinely additive (not silently hardcoded):
+delete or rename both example files, restart the `backend` container and
+rebuild the `frontend` image, and confirm the route and nav item both
+cleanly disappear.
+
 ## Exit criteria
 
 All backend endpoint groups (health, trino incl. table/column browsing,
 dagster, chat, search, services) respond correctly against the live stack;
 the frontend is served at `:3200` with working CORS and SPA routing; a
-browser walkthrough of all five pages
-round-trips through the backend to Trino/Dagster/pipelines/Qdrant.
+browser walkthrough of all five pages round-trips through the backend to
+Trino/Dagster/pipelines/Qdrant; the workload example plugin route and page
+are both reachable, proving the extension mechanism works end-to-end.

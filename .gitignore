@@ -14,14 +14,32 @@ __pycache__/
 venv/
 *.egg-info/
 
+# Node
+node_modules/
+frontend/dist/
+examples/frontend/dist/
+
 # AI stack runtime state
 ollama-data/
 openwebui-data/
 qdrant-data/
 
-# Nested processing repo — its own independent git repo, not tracked here.
-# See processing/README.md for the split rationale.
-processing/
+# Nested workload repo — its own independent git repo, not tracked here.
+# See workload/README.md and examples/README.md for the split rationale:
+# workload/ is your private, per-checkout scenario work; examples/ (tracked
+# below) is the bundled public example that seeds workload/ on first run
+# via `make init-workload`.
+workload/
+
+# Generated/local artifacts inside examples/ (the bundled, tracked example)
+examples/dbt_project/target/
+examples/dbt_project/logs/
+examples/dbt_project/dbt_packages/
+examples/dbt_project/.user.yml
+examples/dagster_project/.dagster/
+examples/dagster_project/**/*.egg-info/
+examples/**/__pycache__/
+examples/**/*.pyc
 
 # OS
 .DS_Store

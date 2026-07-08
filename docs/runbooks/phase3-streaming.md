@@ -15,7 +15,7 @@ This starts `redpanda`, `redpanda-console`, and `redpanda-connect` (the
 ## Produce sample events
 
 ```bash
-cd processing/sample_producer
+cd workload/sample_producer
 pip install -r requirements.txt
 python produce_events.py --count 100 --brokers localhost:19092
 ```

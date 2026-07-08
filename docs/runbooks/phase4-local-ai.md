@@ -45,7 +45,7 @@ Point count should match the distinct `(user_id, event_type, event_hour)` rows i
 
 ## Phase D — End-to-end RAG
 
-The pipeline script (`processing/pipelines/rag_lakehouse_pipeline.py`) is bind-mounted into the `pipelines` container and hot-loads — restart the container after editing it:
+The pipeline script (`workload/pipelines/rag_lakehouse_pipeline.py`) is bind-mounted into the `pipelines` container and hot-loads — restart the container after editing it:
 ```bash
 docker restart pipelines
 ```

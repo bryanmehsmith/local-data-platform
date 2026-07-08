@@ -16,7 +16,7 @@ ground.
   reference target since it's the natural next step up from a single
   machine) with `kubectl` and `helm` configured against it.
 - **A container registry the cluster can pull from.** Locally, `dagster-user-code`,
-  `dagster-webserver`, `dagster-daemon` (built from `processing/dagster_project/Dockerfile`)
+  `dagster-webserver`, `dagster-daemon` (built from `workload/dagster_project/Dockerfile`)
   and `backend`/`frontend` (built from `backend/Dockerfile`/`frontend/Dockerfile`)
   are built directly by Docker Compose on the same machine that runs them —
   Kubernetes has no equivalent "build on the node" step. You need to push
@@ -67,10 +67,10 @@ once against the new endpoint via `mc`, or port it to a Kubernetes `Job`.
 Use the official
 [Redpanda Helm chart / Redpanda Operator](https://docs.redpanda.com/current/deploy/deployment-option/self-hosted/kubernetes/)
 to scale from 1 to 3+ brokers with rack awareness. The Kafka API is
-unchanged, so `processing/sample_producer/produce_events.py`, Redpanda
+unchanged, so `workload/sample_producer/produce_events.py`, Redpanda
 Connect, and the schema registry client config don't change — only the
 broker addresses (update `TRINO_HOST`-style env vars and Redpanda Connect's
-`seed_brokers` in `processing/connectors/redpanda-connect/events-to-minio.yaml`
+`seed_brokers` in `workload/connectors/redpanda-connect/events-to-minio.yaml`
 to the new Service DNS name).
 
 ```bash
@@ -114,8 +114,8 @@ Switch the run launcher to `dagster-k8s` (or `dagster-celery-k8s` for higher
 concurrency) via the official
 [Dagster Helm chart](https://docs.dagster.io/deployment/guides/kubernetes).
 Runs execute as Kubernetes Jobs instead of local subprocesses. Asset code
-(`processing/dagster_project/local_data_platform/`) and dbt models
-(`processing/dbt_project/`) are unchanged — push the `dagster_project`
+(`workload/dagster_project/local_data_platform/`) and dbt models
+(`workload/dbt_project/`) are unchanged — push the `dagster_project`
 image to your registry and point the Helm chart's `dagsterWebserver`/
 `dagsterDaemon`/`userCodeDeployments` values at it instead of building
 locally.
@@ -136,7 +136,7 @@ translation — on Kubernetes, GPU scheduling means:
 
 Qdrant and the `pipelines` sidecar are stateless/lightweight — plain
 Deployments + Services, `pipelines`' `PIPELINES_URLS`/volume-mounted scripts
-work identically (mount `processing/pipelines/` as a ConfigMap or bake it
+work identically (mount `workload/pipelines/` as a ConfigMap or bake it
 into a custom image if you want immutable deployments instead of the local
 hot-reload-via-bind-mount pattern). Open WebUI needs a PVC for
 `/app/backend/data` in place of the local `openwebui-data` volume.
@@ -167,9 +167,9 @@ the connection strings/API contracts are otherwise identical):
 |---|---|
 | `config/trino/catalog/iceberg.properties` | `s3.endpoint`, `iceberg.nessie-catalog.uri` |
 | `backend/app/config.py` | `trino_host`, `dagster_graphql_url`, `qdrant_url`, `ollama_base_url`, `pipelines_url` defaults (all overridable via env — set these as Deployment env vars, no code change) |
-| `processing/pipelines/*.py` | Same pattern — `OLLAMA_BASE_URL`/`QDRANT_URL`/`TRINO_HOST` env vars |
-| `processing/dagster_project/local_data_platform/workspace.yaml` | gRPC code-server host (`dagster-user-code` → its Service DNS name) |
-| `processing/connectors/redpanda-connect/events-to-minio.yaml` | Redpanda `seed_brokers`, MinIO S3 endpoint |
+| `workload/pipelines/*.py` | Same pattern — `OLLAMA_BASE_URL`/`QDRANT_URL`/`TRINO_HOST` env vars |
+| `workload/dagster_project/local_data_platform/workspace.yaml` | gRPC code-server host (`dagster-user-code` → its Service DNS name) |
+| `workload/connectors/redpanda-connect/events-to-minio.yaml` | Redpanda `seed_brokers`, MinIO S3 endpoint |
 
 ## Explicitly out of scope for this guide
 

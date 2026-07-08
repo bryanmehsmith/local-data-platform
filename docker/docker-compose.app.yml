@@ -18,6 +18,9 @@ services:
       - ../.env
     environment:
       DAGSTER_GRAPHQL_URL: http://dagster-webserver:3000/graphql
+      BACKEND_PLUGIN_DIRS: /opt/workload/backend
+    volumes:
+      - ../workload/backend:/opt/workload/backend:ro
     ports:
       - "8000:8000"
     networks:
@@ -30,8 +33,11 @@ services:
 
   frontend:
     build:
-      context: ../frontend
-      dockerfile: Dockerfile
+      # Widened to the repo root (not ../frontend) so workload/frontend is
+      # visible during the build for the import.meta.glob route discovery —
+      # see frontend/Dockerfile and frontend/src/routes-manifest.ts.
+      context: ..
+      dockerfile: frontend/Dockerfile
       args:
         VITE_API_BASE_URL: http://localhost:8000/api
         VITE_API_KEY: ${BACKEND_API_KEY}

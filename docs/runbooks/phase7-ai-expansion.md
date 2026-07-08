@@ -4,7 +4,7 @@ Requires Phase 4 (local AI chat/RAG) and Phase 6a (dbt tests/descriptions) runni
 
 ## 7a. Text-to-SQL pipeline
 
-Adds `processing/pipelines/text_to_sql_pipeline.py` — the LLM generates a SQL query
+Adds `workload/pipelines/text_to_sql_pipeline.py` — the LLM generates a SQL query
 against a hardcoded schema description, the pipeline validates and executes
 it read-only against Trino, then a second LLM call turns the result into a
 natural-language answer.
@@ -84,15 +84,15 @@ docker restart pipelines
 
 ## 7c. Eval harness
 
-`processing/evals/rag_eval_cases.yaml` + `processing/evals/run_rag_eval.py` — a lightweight,
+`workload/evals/rag_eval_cases.yaml` + `workload/evals/run_rag_eval.py` — a lightweight,
 manual-only regression check (no CI in this repo yet). Ground truth for
 numeric questions is computed live from Trino at eval time, not hardcoded.
 
 ### Run
 
 ```bash
-pip install -r processing/evals/requirements.txt
-python processing/evals/run_rag_eval.py
+pip install -r workload/evals/requirements.txt
+python workload/evals/run_rag_eval.py
 ```
 
 ### Verify

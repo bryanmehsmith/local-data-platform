@@ -1,0 +1,21 @@
+version: 2
+
+sources:
+  - name: raw
+    database: iceberg
+    schema: raw
+    tables:
+      - name: events
+        columns:
+          - name: event_id
+            data_tests:
+              - not_null
+          - name: user_id
+            data_tests:
+              - not_null
+          - name: event_type
+            data_tests:
+              - not_null
+          - name: ts
+            data_tests:
+              - not_null

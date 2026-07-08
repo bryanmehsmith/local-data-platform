@@ -1,0 +1,17 @@
+[project]
+name = "local_data_platform"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "dagster",
+    "dagster-webserver",
+    "dagster-dbt",
+    "trino",
+    "dbt-trino",
+    "boto3",
+    "requests",
+    "qdrant-client",
+]
+
+[tool.dagster]
+module_name = "local_data_platform.definitions"

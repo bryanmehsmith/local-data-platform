@@ -20,7 +20,7 @@ retrieval-augmented generation (RAG) grounded in the lakehouse data.
 | Transformation | **dbt** (dbt-trino) | SQL-as-code, materializes Iceberg tables via Trino |
 | Local LLM runtime | **Ollama** | OpenAI-compatible API, CPU by default, GPU via a Compose override, no rewrite |
 | Chat UI | **Open WebUI** | Talks to Ollama directly for plain chat, and to the `pipelines` sidecar for RAG |
-| RAG orchestration | **open-webui/pipelines** | Custom FastAPI sidecar implementing the retrieval step (`processing/pipelines/rag_lakehouse_pipeline.py`) and text-to-SQL (`text_to_sql_pipeline.py`) |
+| RAG orchestration | **open-webui/pipelines** | Custom FastAPI sidecar implementing the retrieval step (`workload/pipelines/rag_lakehouse_pipeline.py`) and text-to-SQL (`text_to_sql_pipeline.py`) |
 | Vector store | **Qdrant** | Two collections: `curated_events` (data facts) and `dbt_docs` (table documentation) |
 | BI / dashboards | **Metabase** | Native Trino driver; connects to catalog `iceberg`, schema `marts` |
 | Data quality | **dbt tests** | `not_null`/`unique`/`relationships` tests, surfaced as Dagster asset checks |
@@ -35,7 +35,7 @@ retrieval-augmented generation (RAG) grounded in the lakehouse data.
 ## Data flow
 
 ```
-processing/sample_producer/produce_events.py
+workload/sample_producer/produce_events.py
         │  (JSON events)
         ▼
    Redpanda topic "raw.events"  ◄── inspectable via Redpanda Console
@@ -91,7 +91,7 @@ A parallel branch embeds dbt's own model documentation into a second
 collection, so RAG can answer "what does this table mean" questions too:
 
 ```
-  processing/dbt_project/target/manifest.json  (model/column descriptions from Phase 6a)
+  workload/dbt_project/target/manifest.json  (model/column descriptions from Phase 6a)
         │
         ▼
   Dagster asset `dbt_docs_embeddings`
@@ -155,6 +155,32 @@ services hub linking out to every other UI in the platform — meant to be
 extended with whatever cross-cutting views the platform's actual usage calls
 for, rather than a fixed-purpose dashboard.
 
+**Scenario-specific extensions live in `workload/`, not core
+`backend`/`frontend`.** `workload/` is gitignored by this repo — it's meant
+to hold your own independently-versioned private repo. `examples/` (tracked
+here, the bundled reference scenario) has the same internal layout;
+`make init-workload` copies it into `workload/` (no-clobber) whenever
+`workload/dagster_project` doesn't exist yet, so the whole platform runs
+out of the box on a fresh clone with no setup. Clone your own repo into
+`workload/` whenever you're ready to replace the bundled example —
+nothing else in this repo needs to change.
+
+`workload/backend/*.py` files are loaded at startup by
+`backend/app/plugin_loader.py` (bind-mounted read-only, scanned via
+`importlib`, one `APIRouter` per file) and mounted under
+`/api/workload/<name>` — a broken plugin logs a warning and is skipped
+rather than crashing core startup. `workload/frontend/src/routes/*.tsx`
+files are discovered at *build time* by `frontend/src/routes-manifest.ts`
+via Vite's `import.meta.glob` (the frontend has no runtime plugin loading —
+it's a static build served by nginx) and merged into the router and sidebar
+nav alongside the core pages. Both are documented, working templates (see
+`examples/backend/example_plugin.py`, `examples/frontend/src/routes/ExamplePage.tsx`)
+meant to be copied and replaced, not core files a real adopter needs to
+fork. **Known v1 simplification**: there's no dependency isolation between
+workload plugins and the core app (same Python process, same JS bundle) —
+fine for a single trusted workload repo, not a substitute for a real
+multi-tenant plugin sandbox.
+
 ## Why Ollama + Open WebUI + Pipelines + Qdrant
 
 Ollama gives an OpenAI-compatible local API that runs CPU-only today and
@@ -182,7 +208,7 @@ built in. For two marts, one container is the right amount of infrastructure.
 
 `dagster-dbt`'s `@dbt_assets` decorator already runs `dbt build`, which runs
 dbt tests as part of the same invocation — adding tests is purely a YAML
-change (`processing/dbt_project/models/{staging,marts}/schema.yml`), no code change.
+change (`workload/dbt_project/models/{staging,marts}/schema.yml`), no code change.
 Each test becomes a Dagster **asset check** shown on the corresponding
 model's "Checks" tab, red on failure. Coverage: `not_null`/`unique` on
 `stg_events.event_id`, `not_null` across both models' columns, and a
@@ -273,7 +299,7 @@ config change, not a rewrite.
 - **The pipelines framework only special-cases `"manifold"`/`"filter"`
   pipeline types in its model listing** — a plain retrieval pipe must NOT set
   `self.type` in `__init__` (see the comment in
-  `processing/pipelines/rag_lakehouse_pipeline.py`), or it loads successfully but never
+  `workload/pipelines/rag_lakehouse_pipeline.py`), or it loads successfully but never
   appears in `/v1/models` / Open WebUI's model dropdown. Also note the
   installed `qdrant-client` (1.18.x) dropped `QdrantClient.search()` in favor
   of `query_points()` — the pipeline uses the latter.
@@ -300,7 +326,7 @@ config change, not a rewrite.
   misread raw Python tuple/list output (e.g. read `[(60,)]` as "1 row
   containing the value 60" rather than "60"). `text_to_sql_pipeline.py`'s
   `_format_result` spells results out explicitly to avoid this.
-- **The eval harness (`processing/evals/`) is manual-only, no CI exists in this repo
+- **The eval harness (`workload/evals/`) is manual-only, no CI exists in this repo
   yet**, and its substring-match assertions for single-digit ground truth
   can false-positive if that digit appears incidentally elsewhere in the
   answer. A GitHub Actions job and stricter answer-extraction are natural

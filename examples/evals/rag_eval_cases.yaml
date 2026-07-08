@@ -1,0 +1,25 @@
+# Ground truth is computed live from Trino at eval time (not hardcoded), so
+# cases stay valid as the seed/sample data evolves. See evals/run_rag_eval.py.
+- name: click_count_user_5
+  question: "How many click events did user 5 have?"
+  pipeline_model: lakehouse_rag
+  ground_truth_sql: >
+    SELECT sum(event_count) FROM iceberg.marts.curated_events
+    WHERE user_id = 5 AND event_type = 'click'
+
+- name: docs_curated_events_meaning
+  question: "What does the curated_events table represent?"
+  pipeline_model: lakehouse_rag
+  expect_substring: "hourly"
+
+- name: out_of_scope_question
+  question: "What is the capital of France?"
+  pipeline_model: lakehouse_rag
+  # Refusal wording varies run to run; the regression that actually matters is
+  # hallucinating the real-world answer instead of declining, so assert that.
+  expect_not_substring: "paris"
+
+- name: text_to_sql_row_count
+  question: "How many rows are in the curated_events table?"
+  pipeline_model: text_to_sql
+  ground_truth_sql: "SELECT count(*) FROM iceberg.marts.curated_events"

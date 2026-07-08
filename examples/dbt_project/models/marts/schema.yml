@@ -1,0 +1,26 @@
+version: 2
+
+models:
+  - name: curated_events
+    description: "Hourly aggregate of event counts per user and event type, built from stg_events."
+    columns:
+      - name: user_id
+        description: "Identifier of the user the hourly bucket belongs to."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_events')
+                field: user_id
+      - name: event_type
+        description: "The kind of event being aggregated."
+        data_tests:
+          - not_null
+      - name: event_hour
+        description: "Hour bucket (date_trunc('hour', ts)) the count belongs to."
+        data_tests:
+          - not_null
+      - name: event_count
+        description: "Number of events of this type, for this user, in this hour."
+        data_tests:
+          - not_null

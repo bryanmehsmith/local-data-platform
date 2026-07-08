@@ -1,0 +1,7 @@
+# Normalize line endings so this repo (developed on Windows, run mostly in
+# Linux containers) doesn't show CRLF/LF churn on every diff.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.ico binary

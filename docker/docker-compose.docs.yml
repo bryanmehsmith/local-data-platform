@@ -10,7 +10,7 @@ services:
     image: nginx:1.27-alpine
     container_name: dbt-docs
     volumes:
-      - ../processing/dbt_project/target:/usr/share/nginx/html:ro
+      - ../workload/dbt_project/target:/usr/share/nginx/html:ro
     ports:
       - "8070:80"
     networks:

@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  compose-config:
+    name: Validate Docker Compose files
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Seed workload/ from the bundled example
+        run: make init-workload
+      - name: Create a throwaway .env
+        run: cp .env.example .env
+      - name: docker compose config (every phase's file combo)
+        run: |
+          set -e
+          docker compose --env-file .env -f docker/docker-compose.yml config -q
+          docker compose --env-file .env -f docker/docker-compose.yml -f docker/docker-compose.dagster.yml config -q
+          docker compose --env-file .env -f docker/docker-compose.yml -f docker/docker-compose.dagster.yml -f docker/docker-compose.ai.yml config -q
+          docker compose --env-file .env -f docker/docker-compose.yml -f docker/docker-compose.dagster.yml -f docker/docker-compose.ai.yml -f docker/docker-compose.ai.gpu.yml config -q
+          docker compose --env-file .env -f docker/docker-compose.yml -f docker/docker-compose.bi.yml config -q
+          docker compose --env-file .env -f docker/docker-compose.yml -f docker/docker-compose.docs.yml config -q
+          docker compose --env-file .env -f docker/docker-compose.yml -f docker/docker-compose.observability.yml config -q
+          docker compose --env-file .env -f docker/docker-compose.yml -f docker/docker-compose.dagster.yml -f docker/docker-compose.app.yml config -q
+
+  backend:
+    name: Backend syntax check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m compileall backend/app examples/backend -q
+
+  frontend:
+    name: Frontend type-check + build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Seed workload/ from the bundled example
+        run: make init-workload
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm ci
+        working-directory: frontend
+      - name: Symlink node_modules up to the repo root
+        # Same reason as frontend/Dockerfile's build stage: workload/frontend
+        # (a sibling of frontend/) isn't an ancestor of frontend/node_modules,
+        # so Node/Rollup can't resolve npm imports (e.g. lucide-react) from
+        # a workload page without this on the shared ancestor path.
+        run: ln -s frontend/node_modules node_modules
+      - run: npx tsc --noEmit
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
+        env:
+          VITE_API_BASE_URL: http://localhost:8000/api
+          VITE_API_KEY: ci-placeholder

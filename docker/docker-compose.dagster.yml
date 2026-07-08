@@ -11,7 +11,7 @@ volumes:
 services:
   dagster-user-code:
     build:
-      context: ../processing/dagster_project
+      context: ../workload/dagster_project
       dockerfile: Dockerfile
     container_name: dagster-user-code
     entrypoint: ["/bin/sh", "-c"]
@@ -28,15 +28,15 @@ services:
     environment:
       DAGSTER_HOME: /opt/dagster/dagster_home
     volumes:
-      - ../processing/dagster_project:/opt/dagster/app
-      - ../processing/dbt_project:/opt/dagster/app/dbt_project
+      - ../workload/dagster_project:/opt/dagster/app
+      - ../workload/dbt_project:/opt/dagster/app/dbt_project
       - dagster-home:/opt/dagster/dagster_home
     networks:
       - ldp-net
 
   dagster-webserver:
     build:
-      context: ../processing/dagster_project
+      context: ../workload/dagster_project
       dockerfile: Dockerfile
     container_name: dagster-webserver
     command: ["dagster-webserver", "-h", "0.0.0.0", "-p", "3000", "-w", "/opt/dagster/app/workspace.yaml"]
@@ -49,14 +49,14 @@ services:
     environment:
       DAGSTER_HOME: /opt/dagster/dagster_home
     volumes:
-      - ../processing/dagster_project:/opt/dagster/app
+      - ../workload/dagster_project:/opt/dagster/app
       - dagster-home:/opt/dagster/dagster_home
     networks:
       - ldp-net
 
   dagster-daemon:
     build:
-      context: ../processing/dagster_project
+      context: ../workload/dagster_project
       dockerfile: Dockerfile
     container_name: dagster-daemon
     command: ["dagster-daemon", "run", "-w", "/opt/dagster/app/workspace.yaml"]
@@ -67,7 +67,7 @@ services:
     environment:
       DAGSTER_HOME: /opt/dagster/dagster_home
     volumes:
-      - ../processing/dagster_project:/opt/dagster/app
+      - ../workload/dagster_project:/opt/dagster/app
       - dagster-home:/opt/dagster/dagster_home
     networks:
       - ldp-net

@@ -1,0 +1,14 @@
+# Only the frontend build uses the repo root as its build context (to see
+# workload/frontend as a sibling directory) — everything else is excluded
+# so that build doesn't ship the whole repo (dbt/dagster data, workload's
+# .git, secrets) to the Docker daemon.
+*
+!frontend
+!workload/frontend
+
+frontend/node_modules
+frontend/dist
+workload/frontend/node_modules
+workload/frontend/dist
+**/.git
+**/__pycache__

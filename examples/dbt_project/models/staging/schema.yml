@@ -1,0 +1,23 @@
+version: 2
+
+models:
+  - name: stg_events
+    description: "Deduplicated events, one row per event_id, keeping the latest by ts."
+    columns:
+      - name: event_id
+        description: "Unique identifier for a raw event."
+        data_tests:
+          - unique
+          - not_null
+      - name: user_id
+        description: "Identifier of the user who generated the event."
+        data_tests:
+          - not_null
+      - name: event_type
+        description: "The kind of event (e.g. click, view, purchase)."
+        data_tests:
+          - not_null
+      - name: ts
+        description: "Event timestamp."
+        data_tests:
+          - not_null

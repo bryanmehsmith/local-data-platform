@@ -45,6 +45,9 @@ make up          # brings up every phase (1-8), with GPU-accelerated Ollama
 make up-nogpu    # same, but with CPU-only Ollama (no NVIDIA GPU required)
 ```
 
+(First run seeds `workload/` from the bundled `examples/` scenario
+automatically — see "Repo layout" below. No manual setup needed.)
+
 Both targets chain every phase in order — storage/catalog/query,
 orchestration, streaming, local AI chat/RAG (Ollama, Qdrant, Open WebUI,
 pipelines), BI dashboards (Metabase, with its admin account and starter
@@ -96,15 +99,24 @@ act on the full set of services across every phase. See
 Open WebUI's model dropdown offers two chat models: **Lakehouse RAG**
 (answers from pre-embedded facts + dbt docs) and **Lakehouse Text-to-SQL**
 (generates and runs live, read-only Trino SQL for open-ended questions).
-`processing/evals/run_rag_eval.py` is a lightweight, manual regression check for both —
+`workload/evals/run_rag_eval.py` is a lightweight, manual regression check for both —
 see `docs/runbooks/phase7-ai-expansion.md`.
 
 ## Repo layout
 
 This repo is the **infrastructure repo** — Docker Compose files, service
-config, the backend/frontend app layer, and docs. It's meant to be reusable
-across projects. The `processing/` subfolder is a separate, independently
-versioned git repo (ignored by this repo's `.gitignore`) holding everything
-specific to *this* example scenario — Dagster assets, dbt models, the RAG
-pipelines, the sample event producer, and the eval harness. See
-`processing/README.md` for the split rationale.
+config, the backend/frontend app layer, docs, and a bundled reference
+example in `examples/` (Dagster assets, dbt models, RAG pipelines, sample
+producer, eval harness). It's meant to be reusable across projects.
+
+Docker Compose, the backend plugin loader, and the frontend route
+auto-discovery all actually read from `workload/` — a folder gitignored
+here, meant to hold your own independently-versioned private repo for
+scenario-specific work. `make init-workload` (run automatically by
+`make phase2`/`phase3`/`phase9`) copies `examples/` into `workload/`
+whenever `workload/dagster_project` doesn't exist yet (no-clobber, so any
+files you already have there are untouched), so `make up` works out of the
+box on a fresh clone with no setup — clone your own repo into `workload/`
+instead whenever you're ready to replace the bundled example. See
+`examples/README.md` and
+`workload/README.md` for details.

@@ -1,0 +1,23 @@
+name: "local_data_platform"
+version: "1.0.0"
+config-version: 2
+
+profile: "local_data_platform"
+
+model-paths: ["models"]
+macro-paths: ["macros"]
+
+flags:
+  # dbt-trino's generic test macros wrap ref() in a way dbt's static SQL
+  # parser can't follow ("unable to infer all dependencies") — force full
+  # Jinja rendering instead, which resolves refs correctly.
+  static_parser: false
+
+models:
+  local_data_platform:
+    staging:
+      +materialized: table
+      +schema: staging
+    marts:
+      +materialized: table
+      +schema: marts

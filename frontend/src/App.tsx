@@ -6,6 +6,7 @@ import { AssetsPage } from "./routes/AssetsPage";
 import { ChatPage } from "./routes/ChatPage";
 import { SearchPage } from "./routes/SearchPage";
 import { ServicesPage } from "./routes/ServicesPage";
+import { workloadRoutes } from "./routes-manifest";
 
 export function App() {
   return (
@@ -20,6 +21,9 @@ export function App() {
             <Route path="/chat" element={<ChatPage />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/services" element={<ServicesPage />} />
+            {workloadRoutes.map(({ path, Component }) => (
+              <Route key={path} path={path} element={<Component />} />
+            ))}
           </Routes>
         </div>
       </main>

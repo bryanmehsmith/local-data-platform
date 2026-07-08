@@ -1,4 +1,4 @@
-.PHONY: phase1 phase2 phase3 phase4 phase4-gpu phase5 phase6 phase7 phase8 phase9 up up-nogpu down logs ps
+.PHONY: init-workload phase1 phase2 phase3 phase4 phase4-gpu phase5 phase6 phase7 phase8 phase9 up up-nogpu down logs ps
 
 COMPOSE = docker compose --env-file .env -f docker/docker-compose.yml
 COMPOSE_ALL = docker compose --env-file .env -f docker/docker-compose.yml -f docker/docker-compose.dagster.yml
@@ -22,14 +22,29 @@ COMPOSE_EVERYTHING = docker compose --env-file .env \
 	-f docker/docker-compose.observability.yml \
 	-f docker/docker-compose.app.yml
 
+# Seeds workload/ from the bundled examples/ example whenever the platform
+# content isn't there yet (fresh clone with no workload/ at all, or a
+# workload/ that only has your own README/.gitignore from `git init` but no
+# actual project content). Uses `cp -n` (no-clobber) so it never overwrites
+# anything already at the destination — safe to re-run any time, and safe
+# once you start replacing pieces of the bundled example with your own.
+init-workload:
+	@if [ ! -d workload/dagster_project ]; then \
+		echo "workload/dagster_project not found — seeding workload/ from examples/ (existing files untouched)"; \
+		mkdir -p workload; \
+		cp -rn examples/. workload/; \
+	else \
+		echo "workload/ already has content — leaving it alone"; \
+	fi
+
 phase1:
 	$(COMPOSE) up -d minio minio-init nessie trino
 
-phase2: phase1
+phase2: init-workload phase1
 	$(COMPOSE_ALL) up -d --build --force-recreate dagster-user-code
 	$(COMPOSE_ALL) up -d --build
 
-phase3:
+phase3: init-workload
 	$(COMPOSE) --profile streaming up -d redpanda redpanda-console redpanda-connect
 
 phase4: phase2
@@ -66,7 +81,7 @@ phase8:
 	$(COMPOSE) up -d minio --force-recreate
 	$(COMPOSE_OBS) up -d
 
-phase9: phase2
+phase9: init-workload phase2
 	$(COMPOSE_APP) up -d --build
 
 # Bring up every phase, with GPU-accelerated Ollama. GNU Make only runs each

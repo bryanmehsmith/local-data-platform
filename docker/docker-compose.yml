@@ -166,7 +166,7 @@ services:
         condition: service_healthy
     command: ["run", "/connect.yaml"]
     volumes:
-      - ../processing/connectors/redpanda-connect/events-to-minio.yaml:/connect.yaml:ro
+      - ../workload/connectors/redpanda-connect/events-to-minio.yaml:/connect.yaml:ro
     env_file:
       - ../.env
     networks:

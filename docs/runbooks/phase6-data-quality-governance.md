@@ -5,12 +5,12 @@ Requires Phase 2 running (Dagster + dbt).
 ## 6a. dbt tests
 
 `dagster-dbt`'s `@dbt_assets` decorator already runs `dbt build` (see
-`processing/dagster_project/local_data_platform/assets/dbt_assets.py`), which runs tests
+`workload/dagster_project/local_data_platform/assets/dbt_assets.py`), which runs tests
 automatically — no code change needed, only new YAML:
 
-- `processing/dbt_project/models/staging/sources.yml` — `not_null` on `raw.events` columns.
-- `processing/dbt_project/models/staging/schema.yml` (new) — `unique`+`not_null` on `stg_events.event_id`, `not_null` on the rest, plus descriptions.
-- `processing/dbt_project/models/marts/schema.yml` (new) — `not_null` on all `curated_events` columns, plus a `relationships` test (`curated_events.user_id → stg_events.user_id`).
+- `workload/dbt_project/models/staging/sources.yml` — `not_null` on `raw.events` columns.
+- `workload/dbt_project/models/staging/schema.yml` (new) — `unique`+`not_null` on `stg_events.event_id`, `not_null` on the rest, plus descriptions.
+- `workload/dbt_project/models/marts/schema.yml` (new) — `not_null` on all `curated_events` columns, plus a `relationships` test (`curated_events.user_id → stg_events.user_id`).
 
 **Gotcha:** dbt-trino's generic test macros trip dbt's static SQL parser
 ("dbt was unable to infer all dependencies... typically happens when ref()
@@ -38,7 +38,7 @@ docker restart dagster-user-code   # re-runs `dbt parse` on startup, picks up ne
 2. Open the `stg_events`/`curated_events` assets in the Dagster UI asset
    catalog → "Checks" tab → confirm each test appears as a green check.
 3. **Deliberate failure test:** temporarily break the `relationships` test's
-   `field:` in `processing/dbt_project/models/marts/schema.yml` to a nonexistent
+   `field:` in `workload/dbt_project/models/marts/schema.yml` to a nonexistent
    column, restart `dagster-user-code`, re-materialize — confirm dbt reports
    a `Database Error` / `COLUMN_NOT_FOUND` and the Dagster run fails. Revert
    the change and re-materialize to confirm it goes back to green.
@@ -60,7 +60,7 @@ docker exec dagster-user-code sh -c "cd dbt_project && dbt docs generate --profi
 docker compose --env-file .env -f docker/docker-compose.yml -f docker/docker-compose.docs.yml up -d dbt-docs
 ```
 
-Re-run the `dbt docs generate` command any time models/descriptions change — `dbt-docs` just serves whatever is in `processing/dbt_project/target/`, no rebuild needed.
+Re-run the `dbt docs generate` command any time models/descriptions change — `dbt-docs` just serves whatever is in `workload/dbt_project/target/`, no rebuild needed.
 
 ### Verify
 

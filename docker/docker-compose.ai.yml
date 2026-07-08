@@ -60,7 +60,7 @@ services:
       TRINO_HOST: trino
       TRINO_CATALOG: iceberg
     volumes:
-      - ../processing/pipelines:/app/pipelines
+      - ../workload/pipelines:/app/pipelines
     env_file:
       - ../.env
     ports:

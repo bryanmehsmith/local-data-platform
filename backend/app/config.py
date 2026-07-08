@@ -26,5 +26,13 @@ class Settings(BaseSettings):
 
     cors_origins: list[str] = ["http://localhost:3200"]
 
+    # Kept as a raw string (not list[str]) because pydantic-settings tries to
+    # JSON-decode env values for list-typed fields — split at the call site.
+    backend_plugin_dirs_raw: str = os.environ.get("BACKEND_PLUGIN_DIRS", "")
+
+    @property
+    def backend_plugin_dirs(self) -> list[str]:
+        return [p.strip() for p in self.backend_plugin_dirs_raw.split(",") if p.strip()]
+
 
 settings = Settings()
