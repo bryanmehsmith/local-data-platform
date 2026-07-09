@@ -1,5 +1,11 @@
 name: local-data-platform
 
+# Memory limits below (deploy.resources.limits, honored by plain `docker
+# compose up` — not just Swarm — same mechanism already used for the GPU
+# reservation in docker-compose.ai.gpu.yml) are conservative caps sized to
+# stop one runaway container from starving every sibling on a single host.
+# They are not tuned for performance.
+
 networks:
   ldp-net:
     name: ldp-net
@@ -30,6 +36,10 @@ services:
       - minio-data:/data
     networks:
       - ldp-net
+    deploy:
+      resources:
+        limits:
+          memory: 1g
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 5s
@@ -98,6 +108,11 @@ services:
       - ../.env
     networks:
       - ldp-net
+    deploy:
+      resources:
+        # Leaves headroom above jvm.config's -Xmx2G heap.
+        limits:
+          memory: 3g
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/v1/info"]
       interval: 5s
@@ -132,6 +147,11 @@ services:
       - redpanda-data:/var/lib/redpanda/data
     networks:
       - ldp-net
+    deploy:
+      resources:
+        # Leaves headroom above the --memory=1G passed to redpanda's own start command.
+        limits:
+          memory: 2g
     healthcheck:
       test: ["CMD", "rpk", "cluster", "health", "--exit-when-healthy"]
       interval: 5s

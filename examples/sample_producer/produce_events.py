@@ -35,6 +35,11 @@ def main() -> None:
         bootstrap_servers=args.brokers,
         key_serializer=lambda k: k.encode("utf-8"),
         value_serializer=lambda v: json.dumps(v).encode("utf-8"),
+        # Explicit durability intent, not just the client library's default.
+        # Behaves like acks=1 today (single-broker, replication factor 1 —
+        # see docs/scale-out-k3s.md) but becomes meaningfully stronger once
+        # the topic is replicated across a multi-broker Redpanda cluster.
+        acks="all",
     )
 
     for _ in range(args.count):

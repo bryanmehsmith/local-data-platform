@@ -10,3 +10,6 @@ dependencies = [
     "requests",
     "qdrant-client",
 ]
+
+[project.optional-dependencies]
+dev = ["pytest", "httpx"]

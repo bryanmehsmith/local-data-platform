@@ -37,6 +37,19 @@ jobs:
           python-version: "3.11"
       - run: python -m compileall backend/app examples/backend -q
 
+  backend-tests:
+    name: Backend unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -e ".[dev]"
+        working-directory: backend
+      - run: pytest tests -v
+        working-directory: backend
+
   frontend:
     name: Frontend type-check + build
     runs-on: ubuntu-latest
@@ -49,12 +62,9 @@ jobs:
           node-version: "20"
       - run: npm ci
         working-directory: frontend
-      - name: Symlink node_modules up to the repo root
-        # Same reason as frontend/Dockerfile's build stage: workload/frontend
-        # (a sibling of frontend/) isn't an ancestor of frontend/node_modules,
-        # so Node/Rollup can't resolve npm imports (e.g. lucide-react) from
-        # a workload page without this on the shared ancestor path.
-        run: ln -s frontend/node_modules node_modules
+        # postinstall (frontend/scripts/link-node-modules.cjs) symlinks
+        # node_modules up to the repo root so workload/frontend can resolve
+        # npm imports — no separate manual step needed here.
       - run: npx tsc --noEmit
         working-directory: frontend
       - run: npm run build
@@ -62,3 +72,34 @@ jobs:
         env:
           VITE_API_BASE_URL: http://localhost:8000/api
           VITE_API_KEY: ci-placeholder
+
+  dbt-tests:
+    name: dbt build (integration — brings up real containers)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Seed workload/ from the bundled example
+        run: make init-workload
+      - name: Create a throwaway .env
+        run: cp .env.example .env
+      - name: Bring up Phase 1 (storage, catalog, query engine)
+        run: docker compose --env-file .env -f docker/docker-compose.yml up -d minio minio-init nessie trino
+      - name: Bring up Phase 2 (Dagster + dbt)
+        run: |
+          docker compose --env-file .env -f docker/docker-compose.yml -f docker/docker-compose.dagster.yml up -d --build --force-recreate dagster-user-code
+          docker compose --env-file .env -f docker/docker-compose.yml -f docker/docker-compose.dagster.yml up -d --build
+      - name: Wait for Dagster to be ready
+        run: |
+          for i in $(seq 1 30); do
+            curl -fsS http://localhost:3000/server_info && exit 0
+            sleep 5
+          done
+          echo "Dagster did not become ready in time" >&2
+          exit 1
+      - name: Materialize the batch pipeline (runs all 16 dbt tests)
+        run: |
+          docker exec dagster-user-code dagster asset materialize -m local_data_platform.definitions --select "raw_events_seed+"
+          docker exec dagster-user-code dagster asset materialize -m local_data_platform.definitions --select "staging/stg_events,marts/curated_events"
+      - name: Show container logs on failure
+        if: failure()
+        run: docker compose --env-file .env -f docker/docker-compose.yml -f docker/docker-compose.dagster.yml logs --tail=200

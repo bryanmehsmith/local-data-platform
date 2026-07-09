@@ -33,6 +33,10 @@ services:
       - dagster-home:/opt/dagster/dagster_home
     networks:
       - ldp-net
+    deploy:
+      resources:
+        limits:
+          memory: 2g
 
   dagster-webserver:
     build:
@@ -53,6 +57,10 @@ services:
       - dagster-home:/opt/dagster/dagster_home
     networks:
       - ldp-net
+    deploy:
+      resources:
+        limits:
+          memory: 2g
 
   dagster-daemon:
     build:
@@ -71,3 +79,7 @@ services:
       - dagster-home:/opt/dagster/dagster_home
     networks:
       - ldp-net
+    deploy:
+      resources:
+        limits:
+          memory: 2g
