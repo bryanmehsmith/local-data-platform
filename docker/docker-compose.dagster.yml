@@ -27,6 +27,7 @@ services:
       - ../.env
     environment:
       DAGSTER_HOME: /opt/dagster/dagster_home
+      PYTHONDONTWRITEBYTECODE: "1"
     volumes:
       - ../workload/dagster_project:/opt/dagster/app
       - ../workload/dbt_project:/opt/dagster/app/dbt_project
@@ -52,6 +53,7 @@ services:
       - ../.env
     environment:
       DAGSTER_HOME: /opt/dagster/dagster_home
+      PYTHONDONTWRITEBYTECODE: "1"
     volumes:
       - ../workload/dagster_project:/opt/dagster/app
       - dagster-home:/opt/dagster/dagster_home
@@ -74,6 +76,7 @@ services:
       - ../.env
     environment:
       DAGSTER_HOME: /opt/dagster/dagster_home
+      PYTHONDONTWRITEBYTECODE: "1"
     volumes:
       - ../workload/dagster_project:/opt/dagster/app
       - dagster-home:/opt/dagster/dagster_home
