@@ -66,7 +66,11 @@ function TableRow({
   );
 }
 
-export function SchemaBrowser({ onPreview }: { onPreview: (schema: string, table: string) => void }) {
+export function SchemaBrowser({
+  onPreview,
+}: {
+  onPreview: (schema: string, table: string) => void;
+}) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set(["marts"]));
 
   const tablesQuery = useQuery({
@@ -77,7 +81,11 @@ export function SchemaBrowser({ onPreview }: { onPreview: (schema: string, table
   const toggle = (schema: string) => {
     setExpanded((prev) => {
       const next = new Set(prev);
-      next.has(schema) ? next.delete(schema) : next.add(schema);
+      if (next.has(schema)) {
+        next.delete(schema);
+      } else {
+        next.add(schema);
+      }
       return next;
     });
   };

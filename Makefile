@@ -38,7 +38,7 @@ init-workload:
 	fi
 
 phase1:
-	$(COMPOSE) up -d minio minio-init nessie trino
+	$(COMPOSE) up -d minio minio-init nessie-postgres nessie trino
 
 phase2: init-workload phase1
 	$(COMPOSE_ALL) up -d --build --force-recreate dagster-user-code
@@ -87,10 +87,10 @@ phase9: init-workload phase2
 # Bring up every phase, with GPU-accelerated Ollama. GNU Make only runs each
 # phony prerequisite once per invocation even if multiple later phases also
 # depend on it (e.g. phase2), so listing the full chain here is safe.
-up: phase1 phase2 phase3 phase4-gpu phase5 phase6 phase7 phase8
+up: phase1 phase2 phase3 phase4-gpu phase5 phase6 phase7 phase8 phase9
 
 # Same as `up`, but with CPU-only Ollama (no NVIDIA GPU required).
-up-nogpu: phase1 phase2 phase3 phase4 phase5 phase6 phase7 phase8
+up-nogpu: phase1 phase2 phase3 phase4 phase5 phase6 phase7 phase8 phase9
 
 down:
 	$(COMPOSE_EVERYTHING) --profile streaming down

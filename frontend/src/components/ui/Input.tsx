@@ -8,19 +8,16 @@ const fieldClasses =
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
   ({ className = "", ...props }, ref) => (
     <input ref={ref} className={`${fieldClasses} ${className}`} {...props} />
-  )
+  ),
 );
 Input.displayName = "Input";
 
-export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<HTMLTextAreaElement>>(
-  ({ className = "", ...props }, ref) => (
-    <textarea
-      ref={ref}
-      className={`${fieldClasses} font-mono resize-y ${className}`}
-      {...props}
-    />
-  )
-);
+export const Textarea = forwardRef<
+  HTMLTextAreaElement,
+  TextareaHTMLAttributes<HTMLTextAreaElement>
+>(({ className = "", ...props }, ref) => (
+  <textarea ref={ref} className={`${fieldClasses} font-mono resize-y ${className}`} {...props} />
+));
 Textarea.displayName = "Textarea";
 
 export const Select = forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<HTMLSelectElement>>(
@@ -28,6 +25,6 @@ export const Select = forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<H
     <select ref={ref} className={`${fieldClasses} pr-8 ${className}`} {...props}>
       {children}
     </select>
-  )
+  ),
 );
 Select.displayName = "Select";

@@ -23,7 +23,10 @@ export function SearchPage() {
 
   return (
     <div>
-      <PageHeader title="Vector Search" description="Run similarity search directly against Qdrant." />
+      <PageHeader
+        title="Vector Search"
+        description="Run similarity search directly against Qdrant."
+      />
 
       <Card>
         <CardBody className="flex items-center gap-2">

@@ -13,6 +13,7 @@ networks:
 volumes:
   minio-data:
   redpanda-data:
+  nessie-postgres-data:
 
 services:
   # ---------------------------------------------------------------------
@@ -67,11 +68,39 @@ services:
   # ---------------------------------------------------------------------
   # Iceberg REST catalog
   # ---------------------------------------------------------------------
+  nessie-postgres:
+    image: postgres:16-alpine
+    container_name: nessie-postgres
+    environment:
+      POSTGRES_USER: ${NESSIE_PG_USER}
+      POSTGRES_PASSWORD: ${NESSIE_PG_PASSWORD}
+      POSTGRES_DB: ${NESSIE_PG_DB:-nessie}
+    volumes:
+      - nessie-postgres-data:/var/lib/postgresql/data
+    networks:
+      - ldp-net
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${NESSIE_PG_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
   nessie:
     image: ghcr.io/projectnessie/nessie:0.99.0
     container_name: nessie
+    depends_on:
+      nessie-postgres:
+        condition: service_healthy
     environment:
-      nessie.version.store.type: ${NESSIE_VERSION_STORE_TYPE:-IN_MEMORY}
+      nessie.version.store.type: ${NESSIE_VERSION_STORE_TYPE:-JDBC}
+      quarkus.datasource.db-kind: postgresql
+      quarkus.datasource.username: ${NESSIE_PG_USER}
+      quarkus.datasource.password: ${NESSIE_PG_PASSWORD}
+      quarkus.datasource.jdbc.url: jdbc:postgresql://nessie-postgres:5432/${NESSIE_PG_DB:-nessie}
     ports:
       - "19120:19120"
     networks:

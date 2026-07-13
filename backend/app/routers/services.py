@@ -1,4 +1,6 @@
-import requests
+import asyncio
+
+import httpx
 from fastapi import APIRouter
 
 from app.services_registry import SERVICES
@@ -6,22 +8,22 @@ from app.services_registry import SERVICES
 router = APIRouter()
 
 
+async def _check_service(client: httpx.AsyncClient, svc: dict) -> dict:
+    try:
+        resp = await client.get(svc["check_url"], timeout=2)
+        status = "ok" if resp.status_code < 500 else "error"
+    except Exception:
+        status = "error"
+    return {
+        "key": svc["key"],
+        "name": svc["name"],
+        "category": svc["category"],
+        "external_url": svc["external_url"],
+        "status": status,
+    }
+
+
 @router.get("")
-def list_services():
-    result = []
-    for svc in SERVICES:
-        try:
-            resp = requests.get(svc["check_url"], timeout=2)
-            status = "ok" if resp.status_code < 500 else "error"
-        except Exception:
-            status = "error"
-        result.append(
-            {
-                "key": svc["key"],
-                "name": svc["name"],
-                "category": svc["category"],
-                "external_url": svc["external_url"],
-                "status": status,
-            }
-        )
-    return result
+async def list_services():
+    async with httpx.AsyncClient() as client:
+        return await asyncio.gather(*(_check_service(client, svc) for svc in SERVICES))

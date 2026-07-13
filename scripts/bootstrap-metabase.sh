@@ -22,6 +22,21 @@ METABASE_URL="${METABASE_URL:-http://localhost:3400}"
 DB_NAME="Lakehouse (Trino/Iceberg)"
 DASHBOARD_NAME="Curated Events Overview"
 
+# Prefer `python3` — the portable, unambiguous name on every Linux distro
+# (including WSL). A bare `python` is not guaranteed to exist even when
+# python3 does, and on WSL specifically it can resolve via PATH interop to
+# the Windows Store's python app-execution-alias stub, which WSL can't
+# actually launch (fails with "Permission denied", not "command not found").
+PYTHON_BIN=python3
+if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
+  PYTHON_BIN=python
+fi
+if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
+  echo "Neither python3 nor python found on PATH — required for $0." >&2
+  echo "(On WSL: sudo apt install python3.)" >&2
+  exit 1
+fi
+
 echo "Waiting for Metabase to become healthy..."
 i=0
 until curl -fsS "$METABASE_URL/api/health" >/dev/null 2>&1; do
@@ -35,7 +50,7 @@ done
 
 json_get() {
   # $1 = python expression fragment applied to json.load(sys.stdin), e.g. "d['setup-token']"
-  python -c "import json,sys; d=json.load(sys.stdin); print($1)"
+  "$PYTHON_BIN" -c "import json,sys; d=json.load(sys.stdin); print($1)"
 }
 
 PROPERTIES=$(curl -fsS "$METABASE_URL/api/session/properties")

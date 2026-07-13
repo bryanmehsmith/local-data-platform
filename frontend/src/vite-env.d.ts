@@ -8,3 +8,10 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+interface Window {
+  __CONFIG__?: {
+    API_BASE_URL?: string;
+    API_KEY?: string;
+  };
+}

@@ -18,13 +18,17 @@ def health():
         checks["trino"] = f"error: {e}"
 
     try:
-        requests.post(settings.dagster_graphql_url, json={"query": "{ __typename }"}, timeout=5).raise_for_status()
+        requests.post(
+            settings.dagster_graphql_url, json={"query": "{ __typename }"}, timeout=5
+        ).raise_for_status()
         checks["dagster"] = "ok"
     except Exception as e:
         checks["dagster"] = f"error: {e}"
 
     try:
-        requests.get(f"{settings.qdrant_url}/collections/{settings.qdrant_collection}", timeout=5).raise_for_status()
+        requests.get(
+            f"{settings.qdrant_url}/collections/{settings.qdrant_collection}", timeout=5
+        ).raise_for_status()
         checks["qdrant"] = "ok"
     except Exception as e:
         checks["qdrant"] = f"error: {e}"

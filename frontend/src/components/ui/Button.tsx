@@ -4,12 +4,10 @@ import { Loader2 } from "lucide-react";
 type Variant = "primary" | "secondary" | "ghost" | "danger";
 
 const variantClasses: Record<Variant, string> = {
-  primary:
-    "bg-indigo-600 text-white hover:bg-indigo-500 disabled:bg-indigo-400 shadow-sm",
+  primary: "bg-indigo-600 text-white hover:bg-indigo-500 disabled:bg-indigo-400 shadow-sm",
   secondary:
     "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 disabled:text-gray-400 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 dark:hover:bg-slate-700",
-  ghost:
-    "text-gray-600 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-800",
+  ghost: "text-gray-600 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-800",
   danger: "bg-red-600 text-white hover:bg-red-500 disabled:bg-red-300",
 };
 
@@ -33,6 +31,6 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       {loading && <Loader2 className="h-4 w-4 animate-spin" />}
       {children}
     </button>
-  )
+  ),
 );
 Button.displayName = "Button";

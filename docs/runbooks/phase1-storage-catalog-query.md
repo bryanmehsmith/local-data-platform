@@ -3,6 +3,11 @@
 Brings up MinIO, Nessie, and Trino only. Proves you can create an Iceberg
 table and query it.
 
+Nessie's catalog metadata is stored in a dedicated `nessie-postgres` service
+(JDBC version store), not in-memory — `docker compose up nessie` will bring
+`nessie-postgres` up automatically first via its `depends_on`, so no separate
+step is needed here, but you'll see one extra container in `docker compose ps`.
+
 ## Bring up
 
 ```bash
@@ -10,7 +15,7 @@ cp .env.example .env   # first time only; edit secrets as needed
 docker compose --env-file .env -f docker/docker-compose.yml up -d minio minio-init nessie trino
 ```
 
-Wait for all four containers to report healthy: `docker compose --env-file .env -f docker/docker-compose.yml ps`
+Wait for all five containers to report healthy: `docker compose --env-file .env -f docker/docker-compose.yml ps`
 
 ## Verify
 

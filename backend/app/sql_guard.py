@@ -3,9 +3,12 @@ import re
 # Same pattern as pipelines/text_to_sql_pipeline.py's guard: single top-level
 # statement, must start with SELECT/WITH/SHOW/DESCRIBE/EXPLAIN, no
 # semicolon-separated second statement, no DDL/DML/admin keywords anywhere.
-# App-level only — Trino's file-based access control
-# (config/trino/access-control/rules.json) is the real enforcement boundary
-# if this backend is ever given a restricted Trino user in the future.
+# App-level only — the real enforcement boundary is Trino's file-based
+# access control (config/trino/access-control/rules.json), which now backs
+# this endpoint with a dedicated `backend_readonly` Trino user restricted to
+# read-only on the iceberg catalog, mirroring the existing
+# `text_to_sql_readonly` user used by the pipelines path. This regex guard
+# is defense-in-depth on top of that, not the primary boundary.
 _ALLOWED_START = re.compile(r"^\s*(SELECT|WITH|SHOW|DESCRIBE|EXPLAIN)\b", re.IGNORECASE)
 _FORBIDDEN = re.compile(
     r"\b(INSERT|UPDATE|DELETE|MERGE|DROP|ALTER|CREATE|TRUNCATE|GRANT|REVOKE|CALL|COMMENT|USE)\b",

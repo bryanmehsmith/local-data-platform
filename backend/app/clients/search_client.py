@@ -24,11 +24,15 @@ class SearchClient:
 
     def search(self, text: str, top_k: int = 5, collection: str | None = None) -> list[dict]:
         vector = self.embed(text)
-        hits = self._client().query_points(
-            collection_name=collection or settings.qdrant_collection,
-            query=vector,
-            limit=top_k,
-        ).points
+        hits = (
+            self._client()
+            .query_points(
+                collection_name=collection or settings.qdrant_collection,
+                query=vector,
+                limit=top_k,
+            )
+            .points
+        )
         return [{"score": h.score, "payload": h.payload} for h in hits]
 
 

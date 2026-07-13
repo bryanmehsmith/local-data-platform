@@ -19,6 +19,7 @@ services:
     environment:
       DAGSTER_GRAPHQL_URL: http://dagster-webserver:3000/graphql
       BACKEND_PLUGIN_DIRS: /opt/workload/backend
+      TRINO_BACKEND_READONLY_USER: ${TRINO_BACKEND_READONLY_USER:-backend_readonly}
     volumes:
       - ../workload/backend:/opt/workload/backend:ro
     ports:
@@ -42,6 +43,9 @@ services:
         VITE_API_BASE_URL: http://localhost:8000/api
         VITE_API_KEY: ${BACKEND_API_KEY}
     container_name: frontend
+    environment:
+      API_BASE_URL: http://localhost:8000/api
+      API_KEY: ${BACKEND_API_KEY}
     depends_on:
       backend:
         condition: service_healthy

@@ -9,7 +9,12 @@ const NAV_ITEMS = [
   { to: "/chat", label: "Chat", icon: MessageSquare, end: false },
   { to: "/search", label: "Search", icon: Search, end: false },
   { to: "/services", label: "Services", icon: Server, end: false },
-  ...workloadRoutes.map(({ path, label, icon, end }) => ({ to: path, label, icon, end: end ?? false })),
+  ...workloadRoutes.map(({ path, label, icon, end }) => ({
+    to: path,
+    label,
+    icon,
+    end: end ?? false,
+  })),
 ];
 
 export function Sidebar() {

@@ -22,4 +22,8 @@ RUN npm --prefix frontend run build
 FROM nginx:1.27-alpine AS serve
 COPY --from=build /repo/frontend/dist /usr/share/nginx/html
 COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
+# Regenerates config.js from runtime env vars (API_BASE_URL/API_KEY) on every
+# container start — see frontend/docker-entrypoint.sh and
+# frontend/src/api/client.ts, which reads window.__CONFIG__ first.
+COPY --chmod=755 frontend/docker-entrypoint.sh /docker-entrypoint.d/40-generate-config.sh
 EXPOSE 80

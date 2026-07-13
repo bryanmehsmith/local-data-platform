@@ -28,7 +28,7 @@ jobs:
           docker compose --env-file .env -f docker/docker-compose.yml -f docker/docker-compose.dagster.yml -f docker/docker-compose.app.yml config -q
 
   backend:
-    name: Backend syntax check
+    name: Backend syntax check + lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -36,6 +36,10 @@ jobs:
         with:
           python-version: "3.11"
       - run: python -m compileall backend/app examples/backend -q
+      - run: pip install -e ".[dev]"
+        working-directory: backend
+      - run: ruff check backend/app examples/backend
+      - run: ruff format --check backend/app examples/backend
 
   backend-tests:
     name: Backend unit tests
@@ -65,6 +69,12 @@ jobs:
         # postinstall (frontend/scripts/link-node-modules.cjs) symlinks
         # node_modules up to the repo root so workload/frontend can resolve
         # npm imports — no separate manual step needed here.
+      - run: npm run lint
+        working-directory: frontend
+      - run: npx prettier --check .
+        working-directory: frontend
+      - run: npm test
+        working-directory: frontend
       - run: npx tsc --noEmit
         working-directory: frontend
       - run: npm run build
@@ -100,6 +110,14 @@ jobs:
         run: |
           docker exec dagster-user-code dagster asset materialize -m local_data_platform.definitions --select "raw_events_seed+"
           docker exec dagster-user-code dagster asset materialize -m local_data_platform.definitions --select "staging/stg_events,marts/curated_events"
+      - name: Set up Python for the eval SQL smoke check
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: RAG eval ground_truth_sql smoke check (no LLM needed)
+        run: |
+          pip install --quiet trino PyYAML
+          python examples/evals/smoke_check_sql.py
       - name: Show container logs on failure
         if: failure()
         run: docker compose --env-file .env -f docker/docker-compose.yml -f docker/docker-compose.dagster.yml logs --tail=200

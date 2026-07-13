@@ -25,9 +25,7 @@ class DagsterClient:
         return body["data"]
 
     def list_assets(self) -> list[dict]:
-        data = self._query(
-            "query { assetNodes { assetKey { path } description jobNames } }"
-        )
+        data = self._query("query { assetNodes { assetKey { path } description jobNames } }")
         return [
             {
                 "key": "/".join(node["assetKey"]["path"]),

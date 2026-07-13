@@ -273,15 +273,24 @@ config change, not a rewrite.
   never has to read the raw JSON directly, so this is an implementation detail
   that can change (e.g. to Parquet via a custom Connect plugin) without
   touching anything downstream.
-- **No landing checkpoint/watermark.** `landed_events` reprocesses every
-  object under `raw/events/` on each run. This is safe (dbt's `stg_events`
-  dedupes by `event_id`) but wasteful once file counts grow — the natural
-  follow-up is tracking processed S3 keys (e.g. in a small Postgres table or
-  Dagster asset check) once volumes justify it.
-- **Nessie runs with an in-memory version store** by default (`.env` /
-  `NESSIE_VERSION_STORE_TYPE=IN_MEMORY`) — catalog metadata is lost on
-  container recreate. Switch to `JDBC` backed by Postgres before relying on
-  this for anything durable.
+- **`landed_events` now tracks a checkpoint of processed S3 keys**, recorded
+  as materialization metadata on the asset itself (no new infra — Dagster's
+  own event log already survives container recreation via the durable
+  `dagster-home` volume). The tracked key set is pruned to a trailing
+  `CHECKPOINT_WINDOW_DAYS` (14) window before being persisted, so a file
+  landing later than that window is silently skipped on reprocessing — a
+  deliberate trade-off given the connector's near-real-time batching. If
+  checkpoint volume ever grows enough that scanning materialization metadata
+  gets slow, the natural escalation is a dedicated Postgres/Iceberg checkpoint
+  table.
+- **Nessie uses a JDBC version store backed by Postgres** (`nessie-postgres`
+  in `docker/docker-compose.yml`), not the in-memory default — catalog
+  metadata now survives container recreation. Migration note: there is no
+  automatic in-memory→JDBC migration path. If you're upgrading from an
+  earlier `IN_MEMORY` deployment and need to preserve existing tables, the
+  underlying Iceberg data files in MinIO are untouched, but table pointers
+  must be manually re-registered against the new catalog (e.g.
+  `CREATE TABLE ... WITH (location => '...')` in Trino).
 - **Only `iceberg.marts.curated_events` is embedded**, not raw events — too
   high-volume/low-signal per row for chat-Q&A grain. A daily-rollup mart plus
   a second embedding pass is the natural follow-up for questions spanning
@@ -319,41 +328,75 @@ config change, not a rewrite.
 - **`text_to_sql`'s SQL safety guard is a regex/keyword check, not a full SQL
   parser** — appropriate for a local single-user tool, backed by Trino's
   file-based access control as the real enforcement boundary
-  (`config/trino/access-control/rules.json` restricts the
-  `text_to_sql_readonly` user to read-only on the `iceberg` catalog).
+  (`config/trino/access-control/rules.json` restricts both the
+  `text_to_sql_readonly` user and the backend's `backend_readonly` user to
+  read-only on the `iceberg` catalog). A hand-rolled SQL parser (e.g.
+  `sqlglot`) was considered and deliberately not added — it would duplicate
+  protection Trino's own parser and access control already provide, for more
+  maintenance burden and its own bug surface.
 - **Query results must be formatted in plain language before being handed
   back to the LLM for the final answer** — small local models (3B) reliably
   misread raw Python tuple/list output (e.g. read `[(60,)]` as "1 row
   containing the value 60" rather than "60"). `text_to_sql_pipeline.py`'s
   `_format_result` spells results out explicitly to avoid this.
-- **The eval harness (`workload/evals/`) is manual-only, no CI exists in this repo
-  yet**, and its substring-match assertions for single-digit ground truth
-  can false-positive if that digit appears incidentally elsewhere in the
-  answer. A GitHub Actions job and stricter answer-extraction are natural
-  follow-ups, not built in v1.
-- **The backend uses a single shared API key** (`BACKEND_API_KEY` via
-  `X-API-Key`), appropriate for a single-user local tool but not safe if
-  ever exposed beyond localhost/a trusted LAN — a real session-based auth
-  scheme is the natural upgrade for multi-user or remote access.
-- **The `/api/trino/query` endpoint's read-only guard is app-level only**
-  (same regex/keyword approach as `text_to_sql_pipeline.py`'s guard), not
-  backed by a restricted Trino user the way `text_to_sql_readonly` backs
-  Phase 7a — the backend currently connects as a normal Trino user with full
-  catalog access. Giving it its own read-only Trino user is a documented
-  follow-up, not built in v1.
-- **The `/api/chat/completions` proxy is non-streaming** — it waits for the
-  full pipelines response and returns it in one payload, rather than
-  streaming tokens to the frontend. Note streaming (SSE passthrough) as a v2
-  follow-up.
-- **Frontend config is baked in at Docker build time**, not runtime (a Vite
-  requirement — `VITE_*` env vars are compiled into the JS bundle) — changing
-  `BACKEND_API_KEY` requires rebuilding the `frontend` image, not just
-  restarting the container.
+- **The eval harness (`examples/evals/`) is still mostly manual**, but CI now
+  runs a lightweight smoke check (`examples/evals/smoke_check_sql.py`, wired
+  into the `dbt-tests` job) that executes every `ground_truth_sql` case
+  against the running Trino to catch schema drift, with no LLM required.
+  Full wiring of the real LLM-based eval (`run_rag_eval.py`) into CI remains
+  a deliberate non-goal for now: it needs Phase 4 (Ollama + real model pulls,
+  a 6GB memory reservation) stacked on top of the already-heaviest CI job,
+  which is a real resource/time cost on standard GitHub-hosted runners. If
+  ever wanted, it should be a separate, non-blocking, manually-triggered or
+  nightly workflow — not part of the PR-blocking `ci.yml`, so a flaky LLM
+  response never blocks a merge. Its substring-match assertions for
+  single-digit ground truth can also still false-positive if that digit
+  appears incidentally elsewhere in the answer — stricter answer-extraction
+  remains a follow-up.
+- **The backend uses a single shared, hashed, rotatable API key**
+  (`BACKEND_API_KEY_HASHES` via `X-API-Key`) — appropriate for a
+  single-user local tool but not safe if ever exposed beyond localhost/a
+  trusted LAN, by design; a real session-based auth scheme with per-user
+  keys is the natural upgrade if this ever needs multi-user or remote
+  access, but isn't built speculatively today given there's exactly one
+  consumer (the bundled frontend). The key is now compared as an
+  HMAC-SHA256 hash rather than in plaintext (so a leaked `.env`/`docker
+  inspect` dump doesn't directly hand over a usable secret), and multiple
+  comma-separated hashes can be valid at once to support rotation without
+  downtime (add a new hash, redeploy, migrate clients, remove the old hash
+  in a follow-up deploy).
+- **The `/api/trino/query` endpoint's read-only guard is now backed by a
+  restricted Trino user** (`backend_readonly`), the same pattern
+  `text_to_sql_readonly` already used for Phase 7a — the app-level
+  regex/keyword guard in `sql_guard.py` is unchanged, but it's no longer the
+  only enforcement boundary for this endpoint.
+- **The `/api/chat/completions` proxy now supports streaming** via a
+  dedicated `POST /api/chat/completions/stream` endpoint (SSE, `fetch()` +
+  `ReadableStream` on the frontend rather than `EventSource`, since
+  `EventSource` can't send the custom `X-API-Key` header this app's auth
+  depends on). The original non-streaming endpoint is kept as-is since the
+  eval harness depends on its fully-buffered response shape.
+- **Frontend config is now resolved at container runtime**, not baked in at
+  Docker build time — an nginx `docker-entrypoint.d/` script writes a
+  `config.js` (`window.__CONFIG__`) from container env vars at startup,
+  which `frontend/src/api/client.ts` reads first, falling back to the
+  Vite-build-time `VITE_*` vars (kept for local `npm run dev`) and then a
+  hardcoded default. Note this is a config-flexibility improvement, not a
+  security one — the API key is equally visible client-side either way.
 - **The services hub's health checks are a static registry**
   (`backend/app/services_registry.py`), not auto-discovered from the Compose
   files — adding a new service to the platform means adding an entry there
-  too. Kept as a deliberately separate endpoint (`/api/services`) from the
-  Docker-healthcheck-facing `/api/health` so a dozen extra outbound checks
-  can never make the `backend` container itself report unhealthy.
+  too. Deliberately not automated: Docker-socket-based discovery would need
+  a root-equivalent `docker.sock` mount into the backend container for a
+  ~13-entry list that changes a few times a year, and parsing the compose
+  files at runtime would still need a hand-maintained manifest for metadata
+  (category, display name, health-check port) the compose files don't carry
+  — neither approach nets a real simplification at this scale. The checks
+  themselves now run concurrently (`httpx.AsyncClient` + `asyncio.gather`)
+  instead of sequentially, so a handful of down services no longer serializes
+  into tens of seconds of latency. Kept as a deliberately separate endpoint
+  (`/api/services`) from the Docker-healthcheck-facing `/api/health` so a
+  dozen extra outbound checks can never make the `backend` container itself
+  report unhealthy.
 
 See `docs/scale-out-k3s.md` for the path to a multi-node cluster.
