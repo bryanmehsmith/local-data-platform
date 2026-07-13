@@ -50,7 +50,13 @@ done
 
 json_get() {
   # $1 = python expression fragment applied to json.load(sys.stdin), e.g. "d['setup-token']"
-  "$PYTHON_BIN" -c "import json,sys; d=json.load(sys.stdin); print($1)"
+  # strict=False: Metabase's /api/session/properties response has been
+  # observed to contain a raw, unescaped control character inside a string
+  # value (likely a translation/description field) — technically invalid
+  # per RFC 8259, but Python's strict-mode parser is the only thing that
+  # actually complains about it, so relax it rather than trying to fix
+  # Metabase's own JSON encoding.
+  "$PYTHON_BIN" -c "import json,sys; d=json.load(sys.stdin, strict=False); print($1)"
 }
 
 PROPERTIES=$(curl -fsS "$METABASE_URL/api/session/properties")

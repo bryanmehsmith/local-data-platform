@@ -67,6 +67,13 @@ services:
     environment:
       TRINO_HOST: trino
       TRINO_CATALOG: iceberg
+      # The pipelines image authenticates /v1/* requests against its own
+      # PIPELINES_API_KEY (defaulting to "0p3n-w3bu!" if unset) — it does
+      # NOT read our project's OPENWEBUI_PIPELINES_API_KEY var on its own.
+      # Wire it through explicitly so changing OPENWEBUI_PIPELINES_API_KEY
+      # in .env actually changes what this container accepts, matching what
+      # the backend/pipelines-eval clients are configured to send.
+      PIPELINES_API_KEY: ${OPENWEBUI_PIPELINES_API_KEY:-0p3n-w3bu!}
     volumes:
       - ../workload/pipelines:/app/pipelines
     env_file:
