@@ -105,6 +105,10 @@ services:
       - "19120:19120"
     networks:
       - ldp-net
+    deploy:
+      resources:
+        limits:
+          memory: 1g
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:19120/api/v2/config"]
       interval: 5s
